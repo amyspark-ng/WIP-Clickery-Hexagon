@@ -44,3 +44,9 @@ TagManager:
   - name: NotLoggedInCanvas
     uniqueID: 3796328889
     locked: 0
+  - name: BlackOpacity
+    uniqueID: 3438836613
+    locked: 0
+  - name: HexagonAndUI
+    uniqueID: 3971983281
+    locked: 0

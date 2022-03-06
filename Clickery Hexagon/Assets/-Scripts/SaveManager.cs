@@ -35,7 +35,42 @@ public static class SaveManager
 
 		else {
 			Debug.Log("SCRIPTER DATA | There was no saved data found");
-			return null;
+			
+			BinaryFormatter binaryFormatter = new BinaryFormatter();
+			FileStream emptyFileStream = new FileStream(dataPath, FileMode.Open);
+
+			emptyFileStream.SetLength(1);
+			
+			SaveData emptySaveData = binaryFormatter.Deserialize(emptyFileStream) as SaveData;
+
+			emptyFileStream.Close();
+
+			return emptySaveData;
+		}
+	}
+
+	public static void DataDeleter() {
+		if (File.Exists(dataPath)) {
+			
+			Debug.Log("SCRIPTER DATA | Data got deleted");
+
+			BinaryFormatter binaryFormatter = new BinaryFormatter();
+			FileStream filestream = new FileStream(dataPath, FileMode.Open);
+			
+			SaveData savedData = binaryFormatter.Deserialize(filestream) as SaveData;
+			
+			savedData.ClickScore = 0;
+			savedData.TimePlayed = 0;
+			
+			for (int i = 0; i < savedData.gotMedal.Length; i++) {
+				savedData.gotMedal[i] = false;
+			}
+			
+			filestream.Close();
+		}
+
+		else {
+			Debug.Log("SCRIPTER DATA | There was no saved data found");
 		}
 	}
 

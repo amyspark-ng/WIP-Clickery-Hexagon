@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 // # SCRIPT THAT CONTROLS ALL THE NEWGROUNDS THINGS ON THE PROJECT #
@@ -13,7 +15,8 @@ public class NewgroundsManager : MonoBehaviour
 	// IDS of both scoreboards
 	int ScoreBoardID = 11612;
 	int TimeBoardID = 11613;
-		
+	// int medalsUnlocked = 0;
+
 	// Is the player logged in? 
 	public bool PlayerLoggedIn;
 	
@@ -32,28 +35,13 @@ public class NewgroundsManager : MonoBehaviour
 	// # Start is called when the script gets called
 	void Start()
 	{
-		StartCoroutine(scripterRef.Start_NG());
+		StartCoroutine(scripterRef.thirdScriptRef.Start_NG());
 	}
 
 	// # Update is called each frame
 	void Update()
-	{ 
-
-		if (LogOutCanvas.activeSelf) {
-			scripterRef.ScoreText.gameObject.SetActive(false);
-			
-			if (Input.GetKeyDown(KeyCode.Return) && !PlayerLoggedIn) {
-				RequestLogin();
-			}
-
-			else if (Input.GetKeyDown(KeyCode.Escape)) {
-				scripterRef.ScoreText.gameObject.SetActive(true);
-				// trigger fadening animation for the object and after some time destroy it
-				// yield return new WaitForSeconds(5.0f);
-				// Destroy(LogOutCanvas);
-			}
-		}
-
+	{
+		// Timer for submitting scores
 		SubmitScoreTimer += Time.deltaTime;
 
 		// submitting the scores every 30 seconds, always submitting the goddamn scores
@@ -61,20 +49,19 @@ public class NewgroundsManager : MonoBehaviour
 			SubmitScoreTimer = 0;
 			SubmitBothScores();
 		}	
-	}
 
-	#endregion
+		// # stuff for the log out canvas
+		if (Input.GetKeyDown(KeyCode.Return) && !PlayerLoggedIn && LogOutCanvas.activeSelf) {
+			RequestLogin();
+		}
 
-	#region DataLoader
-	public void SaveLoader() {
-		SaveData saveData = SaveManager.LoadData(); 
-
-		scripterRef.ClickScore = saveData.ClickScore;
-		scripterRef.TimePlayed = saveData.TimePlayed;
-		
-		for (int i = 0; i > scripterRef.gotMedal.Length; i++) {
-			scripterRef.gotMedal[i] = saveData.gotMedal[i];
-		} 
+		else if (Input.GetKeyDown(KeyCode.Escape)) {
+			scripterRef.ScoreText.gameObject.SetActive(true);
+			LogOutCanvas.SetActive(false);
+			// trigger fadening animation for the object and after some time destroy it
+			// yield return new WaitForSeconds(5.0f);
+			// Destroy(LogOutCanvas);
+		}
 	}
 
 	#endregion
@@ -90,33 +77,9 @@ public class NewgroundsManager : MonoBehaviour
 			}
 
 			else {
-				Debug.Log("Player is not logged in");
-				LogOutCanvas.SetActive(true);
+				OnNOTLoggedIn();
 			}
 		});
-	}
-
-	// # Function that says what happens when you're logged in
-	public void OnLoggedIn() {
-		
-		SaveLoader();
-		
-		SaveManager.DataSaver(scripterRef);
-
-		// Creates a new player instance and sets it to the current one 
-		io.newgrounds.objects.user player = NGcore.current_user;
-
-		// Sets that the player is logged in
-		PlayerLoggedIn = true;
-
-		Debug.Log("Logged player is " + player.name + " And it's " + PlayerLoggedIn);
-		
-		SubmitBothScores();
-	
-		if (!scripterRef.gotMedal[0]) {
-			scripterRef.gotMedal[0] = true;
-			MedalChecks();
-		}
 	}
 
 	// # Requests login using newgrounds passport 
@@ -131,6 +94,28 @@ public class NewgroundsManager : MonoBehaviour
 		NGcore.requestLogin(OnLoggedIn, OnLoginFailed, OnLoginCancelled);
 	}
 
+	// # Function that says what happens when you're logged in
+	public void OnLoggedIn() {
+		if (LogOutCanvas.gameObject.activeSelf) {
+			// TODO: then do the fade out anim and do some sort of stuff like transparency background and thingies
+		}
+	
+		scripterRef.thirdScriptRef.SaveLoader();
+		
+		SaveManager.DataSaver(scripterRef);
+		scripterRef.DebugText.text = "Data Got Saved";
+
+		// Creates a new player instance and sets it to the current one 
+		io.newgrounds.objects.user player = NGcore.current_user;
+
+		// Sets that the player is logged in
+		PlayerLoggedIn = true;
+
+		Debug.Log("Logged player is " + player.name + " And it's " + PlayerLoggedIn);
+		
+		SubmitBothScores();
+	}
+
 	// # Function that says what happens when login fails
 	void OnLoginFailed() {
 		Debug.Log("Loggin error what");
@@ -139,6 +124,12 @@ public class NewgroundsManager : MonoBehaviour
 	// # Function that says what happens when login gets cancelled
 	void OnLoginCancelled() {
 		Debug.Log("Login got cancelled");
+	}
+
+	// # Function that says what happens when you're not logged in
+	void OnNOTLoggedIn() {
+		Debug.Log("Player is not logged in");
+		LogOutCanvas.SetActive(true);
 	}
 
 	#endregion 
@@ -167,89 +158,74 @@ public class NewgroundsManager : MonoBehaviour
 		Debug.Log("MEDAL GOT UNLOCKED");
 	}
 
-	public void MedalChecks() {
+	// # Function that constantly checks if you got a certin medal
+	public void Medal_ConditionChecks() {
+		
+		// Player is logged in newgrounds (very cool)
+		if (PlayerLoggedIn) {
+			if (!scripterRef.gotMedal[0]) {
+				scripterRef.gotMedal[0] = true;
+				UnlockMedal(medal_IDs[0]);
+			}
+		}
+		
+		// If has over 1 score
+		if (scripterRef.ClickScore >= 1) {			
+			if (!scripterRef.gotMedal[1]) {
+				scripterRef.gotMedal[1] = true;
+				UnlockMedal(medal_IDs[1]);
+				scripterRef.isDone = true;
+			} 
+		}
+
+		// If has over 100 score
+		if (scripterRef.ClickScore >= 100) {
+			if (!scripterRef.gotMedal[2]) {
+				scripterRef.gotMedal[2] = true;
+				UnlockMedal(medal_IDs[2]);
+				scripterRef.isDone = true;
+				scripterRef.canChangeColor = true;
+			}
+		}
+		
+		// TODO: MAKE THIS ACTUALLY WORK VERY IMPORTANT and set them using the scripterRef thingy
+
+		// else if (ClickScore == 1000 && !isDone) {
+		// 	if (!scripterRef.gotMedal[3]) {
+		// 		scripterRef.gotMedal[3] = true;
+		// 		ngMan.MedalChecks();
+		// 		isDone = true;
 				
-		if (scripterRef.gotMedal[0]) {
-			UnlockMedal(medal_IDs[0]);
-		}
+		// 		if (PlayerLoggedIn) {
+		// 			canSetToPicture = true;
+		// 		}
 		
-		if (scripterRef.gotMedal[1]) {
-			UnlockMedal(medal_IDs[1]);
-		}
-		
-		if (scripterRef.gotMedal[2]) {
-			UnlockMedal(medal_IDs[2]);
-		}
-		
-		if (scripterRef.gotMedal[3]) {
-			UnlockMedal(medal_IDs[3]);
-		}
-		
-		if (scripterRef.gotMedal[4]) {
-			UnlockMedal(medal_IDs[4]);
-		}
-		
-		if (scripterRef.gotMedal[5]) {
-			UnlockMedal(medal_IDs[5]);
-		}
+		// 	}
+		// }
 
-		if (scripterRef.gotMedal[6]) {
-			UnlockMedal(medal_IDs[6]);
-		}
+		// else if (ClickScore == 2000 && !isDone) {
+		// 	if (!scripterRef.gotMedal[4]) {
+		// 		scripterRef.gotMedal[4] = true;
+		// 		ngMan.MedalChecks();
+		// 		isDone = true;
+		// 	}
+		// }
 
-		if (scripterRef.gotMedal[7]) {
-			UnlockMedal(medal_IDs[7]);
-		}
-
-		if (scripterRef.gotMedal[8]) {
-			UnlockMedal(medal_IDs[8]);
-		}
-
-		if (scripterRef.gotMedal[9]) {
-			UnlockMedal(medal_IDs[9]);
-		}
-
-		if (scripterRef.gotMedal[10]) {
-			UnlockMedal(medal_IDs[10]);
-		}
-
-		if (scripterRef.gotMedal[11]) {
-			UnlockMedal(medal_IDs[11]);
-		}
-
-		if (scripterRef.gotMedal[12]) {
-			UnlockMedal(medal_IDs[12]);
-		}
-
-		if (scripterRef.gotMedal[13]) {
-			UnlockMedal(medal_IDs[13]);
-		}
+		// else if (ClickScore == 6000 && !isDone) {
+		// 	if (!scripterRef.gotMedal[5]) {
+		// 		scripterRef.gotMedal[5] = true;
+		// 		ngMan.MedalChecks();
+		// 		isDone = true;
+		// 	}
+		// }
 	}
 
 	#endregion
 
 	#region ScoreFunctions
 
-	// # Not using this one but having in there just in case lol
-	// # Method that submits the score taking the ScoreBoardID from newgrounds developer tools and the actual score value
-	public void SubmitScore(int ScoreBoardID, int score) {
-		
-		// Creates the ScoreBoard.postScore component
-		io.newgrounds.components.ScoreBoard.postScore submit_score = new io.newgrounds.components.ScoreBoard.postScore();
-		
-		// Sets the submitScoreID to the one in your project
-		submit_score.id = ScoreBoardID;
-		
-		// Sets the value to send to the server to the one in your game
-		submit_score.value = score;
-		
-		// Calls the server with the core and makes these changes
-		submit_score.callWith(NGcore);
-	}
-
 	// # Function to submit both scores
 	public void SubmitBothScores() {
-		Debug.Log("NewgroundsManager | Scores got submitted");
 		// Creates the ScoreBoard.postScore component
 		io.newgrounds.components.ScoreBoard.postScore submit_score = new io.newgrounds.components.ScoreBoard.postScore();
 		io.newgrounds.components.ScoreBoard.postScore submit_time = new io.newgrounds.components.ScoreBoard.postScore();
@@ -266,33 +242,37 @@ public class NewgroundsManager : MonoBehaviour
 		submit_score.callWith(NGcore);
 		submit_time.callWith(NGcore);
 	
-		SaveManager.DataSaver(scripterRef);
-
+		Debug.Log("NewgroundsManager | Scores got submitted");
+		scripterRef.DebugText.text = "Data Got Saved";
 	}
 
+	// TODO: Make this work too lol
 	// # Function to get the #5 best scores from scoreboard
-/* 	public int[] GetScoreBoardScores() {
-		io.newgrounds.objects.score stringr = Object.getGlobalScores("A", 5, 0); 
+	public int[] GetScoreBoardScores() {
+		// io.newgrounds.objects.score stringr = Object.getGlobalScores("A", 5, 0); 
 
-		return scores;
+		// return scores;
 
-		Debug.Log(stringr[0]);
+		// Debug.Log(stringr[0]);
 	
-		return scores;
+		// return scores;
+	
+		return new int[0];
 	}
- */
 
 	// # Function to get the #5 names from scoreboard
-/* 	public string[] GetScoreBoardNames() {
-		io.newgrounds.objects.score stringr = Object.getGlobalScores("A", 5, 0); 
+	public string[] GetScoreBoardNames() {
+		// io.newgrounds.objects.score stringr = Object.getGlobalScores("A", 5, 0); 
 
-		return scores;
+		// return scores;
 
-		Debug.Log(stringr[0]);
+		// Debug.Log(stringr[0]);
+
+		// return names;
 	
-		return names;
+		return new string[4];
 	}
-*/
+
 	#endregion
-	
+
 } // END OF MAIN
